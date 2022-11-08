@@ -1,44 +1,63 @@
 package com.mosect.lib.audiomixer;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class AudioBuffer {
 
-    private final static int SECOND_LENGTH = 1000000;
+    static {
+        System.loadLibrary("mosect_audio_mixer");
+    }
+
+
+    private final static int ERROR_INVALID_SAMPLE_RATE = 1;
+    private final static int ERROR_INVALID_CHANNEL_COUNT = 2;
+    private final static int ERROR_INVALID_TIME_LENGTH = 3;
+    private final static int ERROR_INVALID_PCM_TYPE = 4;
+    private final static int ERROR_ALLOC_FAILED = 5;
 
     private final int sampleRate;
     private final int channelCount;
     private final int timeLength;
-    private final int sampleCount;
-    private final int bufferLength;
-    private final ByteBuffer buffer;
+    private final PcmType pcmType;
+    private final long objId;
+    private boolean released = false;
+    private ByteBuffer buffer;
 
-    AudioBuffer(int sampleRate, int channelCount, int timeLength, PcmType pcmType) {
-        if (sampleRate <= 0 || sampleRate >= 999999)
-            throw new IllegalArgumentException("Unsupported sampleRate: " + sampleRate);
-        if (channelCount <= 0 || channelCount > 10)
-            throw new IllegalArgumentException("Unsupported channelCount: " + channelCount);
-        if (timeLength <= 0 || timeLength >= 10 * SECOND_LENGTH)
-            throw new IllegalArgumentException("Unsupported timeLength: " + timeLength);
+    public AudioBuffer(int sampleRate, int channelCount, int timeLength, PcmType pcmType) {
+        long[] ids = new long[1];
+        int status = createBuffer(sampleRate, channelCount, timeLength, pcmType.getCode(), ids);
+        if (status != 0) {
+            String msg;
+            switch (status) {
+                case ERROR_INVALID_SAMPLE_RATE:
+                    msg = "Invalid sampleRate: " + sampleRate;
+                    break;
+                case ERROR_INVALID_CHANNEL_COUNT:
+                    msg = "Invalid channelCount: " + channelCount;
+                    break;
+                case ERROR_INVALID_TIME_LENGTH:
+                    msg = "Invalid timeLength: " + timeLength;
+                    break;
+                case ERROR_INVALID_PCM_TYPE:
+                    msg = "Invalid pcmType: " + pcmType;
+                    break;
+                case ERROR_ALLOC_FAILED:
+                    msg = "Alloc failed";
+                    break;
+                default:
+                    msg = "Unknown error: " + status;
+                    break;
+            }
+            throw new IllegalArgumentException(msg);
+        }
+        this.objId = ids[0];
         this.sampleRate = sampleRate;
         this.channelCount = channelCount;
         this.timeLength = timeLength;
-        // 计算采样次数
-        sampleCount = (int) ((float) SECOND_LENGTH / sampleRate * timeLength);
-        // 计算buffer长度
-        int byteCount;
-        switch (pcmType) {
-            case BIT8:
-                byteCount = 1;
-                break;
-            case BIT16:
-                byteCount = 2;
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported pcmType: " + pcmType);
-        }
-        bufferLength = sampleCount * channelCount * byteCount;
-        buffer = ByteBuffer.allocateDirect(bufferLength);
+        this.pcmType = pcmType;
+        this.buffer = getNativeBuffer(objId);
+        this.buffer.order(ByteOrder.nativeOrder());
     }
 
     public int getSampleRate() {
@@ -53,21 +72,56 @@ public class AudioBuffer {
         return timeLength;
     }
 
-    public int getSampleCount() {
-        return sampleCount;
+    public PcmType getPcmType() {
+        return pcmType;
     }
 
-    public int getBufferLength() {
-        return bufferLength;
+    public void clear() {
+        if (released) {
+            throw new IllegalStateException("Released");
+        }
+        clearBuffer(objId);
+    }
+
+    public void release() {
+        if (!released) {
+            buffer = null;
+            releaseBuffer(objId);
+            released = true;
+        }
+    }
+
+    public void write(AudioBuffer src, int srcChannel, int dstChannel) {
+        if (srcChannel < 0 || srcChannel >= src.getChannelCount()) {
+            throw new IllegalArgumentException("Invalid srcChannel: " + srcChannel);
+        }
+        if (dstChannel < 0 || dstChannel >= getChannelCount()) {
+            throw new IllegalArgumentException("Invalid dstChannel: " + dstChannel);
+        }
+        long srcId = src.getObjId();
+        long dstId = getObjId();
+        writeBuffer(srcId, srcChannel, dstId, dstChannel);
     }
 
     public ByteBuffer getBuffer() {
         return buffer;
     }
 
-    public void clear() {
-        clearBuffer(buffer);
+    long getObjId() {
+        if (released) {
+            throw new IllegalStateException("Released");
+        }
+        return objId;
     }
 
-    private static native void clearBuffer(ByteBuffer buffer);
+    private static native int createBuffer(int sampleRate, int channelCount, int timeLength, int pcmType, long[] out);
+
+    private static native void clearBuffer(long objId);
+
+    private static native ByteBuffer getNativeBuffer(long objId);
+
+    private static native void releaseBuffer(long objId);
+
+    private static native void writeBuffer(long srcId, int srcChannel, long dstId, int dstChannel);
+
 }

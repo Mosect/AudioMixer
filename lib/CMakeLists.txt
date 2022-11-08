@@ -4,4 +4,5 @@ add_library (
         SHARED
         src/main/cpp/AudioMixer.c
         src/main/cpp/AudioBuffer.c
+        src/main/cpp/AudioUtils.c
 )
