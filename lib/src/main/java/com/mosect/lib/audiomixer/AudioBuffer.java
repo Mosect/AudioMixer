@@ -107,6 +107,10 @@ public class AudioBuffer {
         return buffer;
     }
 
+    public int getBufferSize() {
+        return buffer.capacity();
+    }
+
     long getObjId() {
         if (released) {
             throw new IllegalStateException("Released");

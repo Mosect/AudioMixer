@@ -2,35 +2,65 @@ package com.mosect.app.audiomixer;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Button;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-
-import com.mosect.lib.audiomixer.AudioBuffer;
-import com.mosect.lib.audiomixer.PcmType;
-
-import java.nio.ByteBuffer;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "Act/Main";
 
+    private Button btnAction;
+    private boolean running = false;
+    private AudioPlayer audioPlayer;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        running = false;
 
-        AudioBuffer audioBuffer = new AudioBuffer(44100, 2, 50000, PcmType.BIT16);
-        ByteBuffer buffer = audioBuffer.getBuffer();
-        buffer.position(0);
-        for (int i = 0; i < 500; i++) {
-            buffer.putShort((short) i);
+        setContentView(R.layout.activity_main);
+        btnAction = findViewById(R.id.btn_action);
+        btnAction.setOnClickListener(v -> {
+            if (running) {
+                stopAction();
+            } else {
+                startAction();
+            }
+            updateActionUI();
+        });
+        updateActionUI();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopAction();
+    }
+
+    private void startAction() {
+        running = true;
+        audioPlayer = new AudioPlayer(this, "test01.mp3");
+        audioPlayer.setOnPcmPlayListener((data, frameTime, size) -> {
+            Log.d(TAG, "playPcm: " + frameTime);
+        });
+        audioPlayer.start();
+    }
+
+    private void stopAction() {
+        running = false;
+        if (null != audioPlayer) {
+            audioPlayer.release();
+            audioPlayer = null;
         }
-        AudioBuffer audioBuffer2 = new AudioBuffer(39800, 2, 50000, PcmType.BIT8);
-        audioBuffer2.write(audioBuffer, 0, 1);
-        ByteBuffer buffer2 = audioBuffer2.getBuffer();
-        buffer2.position(0);
-        for (int i = 0; i < 100; i++) {
-            Log.d(TAG, "audioBuffer2: " + buffer2.getShort());
+    }
+
+    private void updateActionUI() {
+        if (running) {
+            btnAction.setText("停止");
+        } else {
+            btnAction.setText("开始");
         }
     }
 }

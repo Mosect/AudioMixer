@@ -28,6 +28,7 @@ Java_com_mosect_lib_audiomixer_AudioMixer_mixBuffer(JNIEnv *env, jclass clazz, j
         input_ptr_list[i] = ptr;
         scale_list[i] = (jfloat) ptr->sample_count / (jfloat) output_ptr->sample_count;
     }
+    (*env)->ReleaseLongArrayElements(env, inputs, input_elements, JNI_ABORT);
 
     // 采用归一化混合声音
     for (int channel = 0; channel < output_ptr->channel_count; ++channel) {
@@ -61,8 +62,6 @@ Java_com_mosect_lib_audiomixer_AudioMixer_mixBuffer(JNIEnv *env, jclass clazz, j
             AudioBuffer_writeValue(output_ptr, channel, i, value);
         }
     }
-
-    (*env)->ReleaseLongArrayElements(env, inputs, input_elements, JNI_ABORT);
     return 0;
 }
 
