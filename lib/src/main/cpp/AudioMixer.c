@@ -14,9 +14,8 @@ extern "C" {
 
 JNIEXPORT jint JNICALL
 Java_com_mosect_lib_audiomixer_AudioMixer_mixBuffer(JNIEnv *env, jclass clazz, jlongArray inputs,
-                                                    jlong output) {
+                                                    jint input_count, jlong output) {
     jboolean help;
-    jlong input_count = (*env)->GetArrayLength(env, inputs);
     if (input_count > AudioMixer_MAX_MIX_COUNT) return 1;
 
     jlong *input_elements = (*env)->GetLongArrayElements(env, inputs, &help);

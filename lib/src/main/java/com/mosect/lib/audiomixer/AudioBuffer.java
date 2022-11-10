@@ -77,9 +77,7 @@ public class AudioBuffer {
     }
 
     public void clear() {
-        if (released) {
-            throw new IllegalStateException("Released");
-        }
+        checkReleased();
         clearBuffer(objId);
     }
 
@@ -92,6 +90,7 @@ public class AudioBuffer {
     }
 
     public void write(AudioBuffer src, int srcChannel, int dstChannel) {
+        checkReleased();
         if (srcChannel < 0 || srcChannel >= src.getChannelCount()) {
             throw new IllegalArgumentException("Invalid srcChannel: " + srcChannel);
         }
@@ -111,10 +110,14 @@ public class AudioBuffer {
         return buffer.capacity();
     }
 
-    long getObjId() {
+    private void checkReleased() {
         if (released) {
             throw new IllegalStateException("Released");
         }
+    }
+
+    long getObjId() {
+        checkReleased();
         return objId;
     }
 
