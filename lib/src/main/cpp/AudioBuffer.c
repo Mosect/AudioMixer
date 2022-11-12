@@ -75,6 +75,7 @@ Java_com_mosect_lib_audiomixer_AudioBuffer_createBuffer(JNIEnv *env, jclass claz
     buffer_ptr->unit_size = unit_size;
     buffer_ptr->sample_count = sample_count;
     buffer_ptr->buffer = (*env)->NewGlobalRef(env, buffer);
+    buffer_ptr->buffer_size = buffer_length;
     buffer_ptr->channel_stride = unit_size * channel_count;
     for (int i = 0; i < channel_count; ++i) {
         buffer_ptr->channel_buffer_list[i] = address + unit_size * i;
@@ -132,6 +133,14 @@ Java_com_mosect_lib_audiomixer_AudioBuffer_writeBuffer(JNIEnv *env, jclass clazz
     }
 }
 
+JNIEXPORT jint JNICALL
+Java_com_mosect_lib_audiomixer_AudioBuffer_getNativeBufferSize(JNIEnv *env, jclass clazz,
+                                                               jlong obj_id) {
+    NativeBufferPtr buffer_ptr = (NativeBufferPtr) obj_id;
+    return buffer_ptr->buffer_size;
+}
+
 #ifdef __cplusplus
 }
 #endif
+

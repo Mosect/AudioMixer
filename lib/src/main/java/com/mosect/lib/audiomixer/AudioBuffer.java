@@ -3,6 +3,9 @@ package com.mosect.lib.audiomixer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+/**
+ * 表示一段音频buffer
+ */
 public class AudioBuffer {
 
     static {
@@ -23,7 +26,16 @@ public class AudioBuffer {
     private final long objId;
     private boolean released = false;
     private ByteBuffer buffer;
+    private final int bufferSize;
 
+    /**
+     * 创建音频buffer
+     *
+     * @param sampleRate   采样率
+     * @param channelCount 声道数量
+     * @param timeLength   时间长度，单位：微秒
+     * @param pcmType      pcm格式类型
+     */
     public AudioBuffer(int sampleRate, int channelCount, int timeLength, PcmType pcmType) {
         long[] ids = new long[1];
         int status = createBuffer(sampleRate, channelCount, timeLength, pcmType.getCode(), ids);
@@ -57,30 +69,57 @@ public class AudioBuffer {
         this.timeLength = timeLength;
         this.pcmType = pcmType;
         this.buffer = getNativeBuffer(objId);
+        this.bufferSize = getNativeBufferSize(objId);
         this.buffer.order(ByteOrder.nativeOrder());
     }
 
+    /**
+     * 获取采样率
+     *
+     * @return 采样率
+     */
     public int getSampleRate() {
         return sampleRate;
     }
 
+    /**
+     * 获取声道数量
+     *
+     * @return 声道数量
+     */
     public int getChannelCount() {
         return channelCount;
     }
 
+    /**
+     * 获取时间长度
+     *
+     * @return 时间长度，单位：微秒
+     */
     public int getTimeLength() {
         return timeLength;
     }
 
+    /**
+     * 获取pcm格式类型
+     *
+     * @return pcm格式类型
+     */
     public PcmType getPcmType() {
         return pcmType;
     }
 
+    /**
+     * 清空buffer数据
+     */
     public void clear() {
         checkReleased();
         clearBuffer(objId);
     }
 
+    /**
+     * 释放buffer
+     */
     public void release() {
         if (!released) {
             buffer = null;
@@ -89,6 +128,13 @@ public class AudioBuffer {
         }
     }
 
+    /**
+     * 向某个声道写入数据
+     *
+     * @param src        数据源buffer
+     * @param srcChannel 源声道编号
+     * @param dstChannel 目标声道编号
+     */
     public void write(AudioBuffer src, int srcChannel, int dstChannel) {
         checkReleased();
         if (srcChannel < 0 || srcChannel >= src.getChannelCount()) {
@@ -102,12 +148,22 @@ public class AudioBuffer {
         writeBuffer(srcId, srcChannel, dstId, dstChannel);
     }
 
+    /**
+     * 获取buffer对象
+     *
+     * @return buffer对象
+     */
     public ByteBuffer getBuffer() {
         return buffer;
     }
 
+    /**
+     * 获取buffer的大小
+     *
+     * @return buffer大小
+     */
     public int getBufferSize() {
-        return buffer.capacity();
+        return bufferSize;
     }
 
     private void checkReleased() {
@@ -126,6 +182,8 @@ public class AudioBuffer {
     private static native void clearBuffer(long objId);
 
     private static native ByteBuffer getNativeBuffer(long objId);
+
+    private static native int getNativeBufferSize(long objId);
 
     private static native void releaseBuffer(long objId);
 

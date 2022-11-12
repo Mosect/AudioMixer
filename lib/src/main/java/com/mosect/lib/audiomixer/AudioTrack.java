@@ -2,6 +2,9 @@ package com.mosect.lib.audiomixer;
 
 import java.nio.ByteBuffer;
 
+/**
+ * 音频轨道，使用{@link AudioMixer#requestTrack(int, int, PcmType) requestTrack}创建
+ */
 public interface AudioTrack {
 
     /**
@@ -36,7 +39,7 @@ public interface AudioTrack {
     int write(byte[] data, int offset, int size);
 
     /**
-     * 提交数据，已锁定状态下，此操作无效；
+     * 提交数据，已锁定状态下，此操作无效；执行后，进入锁定状态，知道音轨数据被消费掉为止
      *
      * @return true，提交成功；false，提交失败
      */
@@ -46,6 +49,13 @@ public interface AudioTrack {
      * 等待解锁，阻塞至解锁为止
      */
     void waitUnlock();
+
+    /**
+     * 判断是否为锁定状态
+     *
+     * @return true，锁定状态；false，非锁定状态
+     */
+    boolean isLocked();
 
     /**
      * 删除轨道，此轨道不再可用

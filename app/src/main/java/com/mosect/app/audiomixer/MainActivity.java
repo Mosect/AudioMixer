@@ -17,6 +17,8 @@ import com.mosect.lib.audiomixer.AudioTrack;
 import com.mosect.lib.audiomixer.PcmType;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     private Button btnAction;
     private boolean running = false;
-    private AudioDecoder audioDecoder;
+    private final List<AudioDecoder> audioDecoders = new ArrayList<>();
     private AudioPlayer audioPlayer;
     private MixPlayer mixPlayer;
     private MicCapture micCapture;
@@ -67,44 +69,8 @@ public class MainActivity extends AppCompatActivity {
         running = true;
         mixPlayer = new MixPlayer();
         mixPlayer.start();
-        audioDecoder = new AudioDecoder(this, "test01.mp3");
-        audioDecoder.setSyncPlayTime(false);
-        audioDecoder.setCallback(new AudioDecoder.Callback() {
-            private AudioTrack track = null;
-
-            @Override
-            public void onFormatConfigured(MediaFormat format, int sampleRate, int channelCount) {
-                track = mixPlayer.requestTrack(sampleRate, channelCount, PcmType.BIT16);
-            }
-
-            @Override
-            public void onWritePcm(ByteBuffer data) {
-                int size = data.remaining();
-                int offset = data.position();
-                int limit = data.limit();
-                Log.d(TAG, "audioDecoder/onWritePcm: " + data);
-                int writeLen = 0;
-                while (writeLen < size) {
-                    data.position(writeLen + offset);
-                    data.limit(limit);
-                    int len = track.write(data);
-                    if (len < 0) {
-                        if (len == AudioTrack.WRITE_RESULT_FULL) {
-                            // 已填满
-                            track.flush();
-                            Log.d(TAG, "audioDecoder/onWritePcm: waitUnlock");
-                            track.waitUnlock();
-                        } else {
-                            // 发生错误
-                            break;
-                        }
-                    } else {
-                        writeLen += len;
-                    }
-                }
-            }
-        });
-        audioDecoder.start();
+        addAssetsTrack("test01.mp3");
+        addAssetsTrack("test02.mp3");
         if (hasAudioRecordPermission()) {
             micCapture = new MicCapture();
             micCapture.setCallback(new MicCapture.Callback() {
@@ -117,15 +83,15 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onWritePcm(byte[] data) {
-                    Log.d(TAG, "micCapture/onWritePcm: ");
+//                    Log.d(TAG, "micCapture/onWritePcm: ");
                     int writeLen = 0;
                     while (writeLen < data.length) {
-                        int len = track.write(data, 0, data.length);
+                        int len = track.write(data, writeLen, data.length - writeLen);
                         if (len < 0) {
                             if (len == AudioTrack.WRITE_RESULT_FULL) {
                                 // 已填满
                                 track.flush();
-                                Log.d(TAG, "micCapture/onWritePcm: waitUnlock");
+//                                Log.d(TAG, "micCapture/onWritePcm: waitUnlock");
                                 track.waitUnlock();
                             } else {
                                 // 发生错误
@@ -143,16 +109,58 @@ public class MainActivity extends AppCompatActivity {
 //        audioPlayer.start();
     }
 
+    private void addAssetsTrack(String name) {
+        AudioDecoder audioDecoder = new AudioDecoder(this, name);
+        audioDecoder.setSyncPlayTime(false);
+        audioDecoder.setCallback(new AudioDecoder.Callback() {
+            private AudioTrack track = null;
+
+            @Override
+            public void onFormatConfigured(MediaFormat format, int sampleRate, int channelCount) {
+                track = mixPlayer.requestTrack(sampleRate, channelCount, PcmType.BIT16);
+            }
+
+            @Override
+            public void onWritePcm(ByteBuffer data) {
+                int size = data.remaining();
+                int offset = data.position();
+                int limit = data.limit();
+//                Log.d(TAG, "audioDecoder/onWritePcm: " + data);
+                int writeLen = 0;
+                while (writeLen < size) {
+                    data.position(writeLen + offset);
+                    data.limit(limit);
+                    int len = track.write(data);
+                    if (len < 0) {
+                        if (len == AudioTrack.WRITE_RESULT_FULL) {
+                            // 已填满
+                            track.flush();
+//                            Log.d(TAG, "audioDecoder/onWritePcm: waitUnlock");
+                            track.waitUnlock();
+                        } else {
+                            // 发生错误
+                            break;
+                        }
+                    } else {
+                        writeLen += len;
+                    }
+                }
+            }
+        });
+        audioDecoders.add(audioDecoder);
+        audioDecoder.start();
+    }
+
     private void stopAction() {
         running = false;
         if (null != mixPlayer) {
             mixPlayer.release();
             mixPlayer = null;
         }
-        if (null != audioDecoder) {
-            audioDecoder.release();
-            audioDecoder = null;
+        for (AudioDecoder ad : audioDecoders) {
+            ad.release();
         }
+        audioDecoders.clear();
         if (null != audioPlayer) {
             audioPlayer.release();
             audioPlayer = null;

@@ -69,13 +69,7 @@ public class AudioMixer {
 
     public ByteBuffer tick() {
         synchronized (lock) {
-            if (!released && !tracks.isEmpty() && isFlushOk()) {
-                mix();
-                outputBuffer.getBuffer().position(0);
-                locked = true;
-                return outputBuffer.getBuffer();
-            }
-            return null;
+            return realTick();
         }
     }
 
@@ -83,35 +77,33 @@ public class AudioMixer {
         synchronized (lock) {
             if (tracks.isEmpty()) return null;
             while (!released) {
-                if (isFlushOk()) {
-                    break;
-                }
+                if (locked || tracks.isEmpty() || isFlushOk()) break;
                 try {
                     lock.wait();
                 } catch (InterruptedException ignored) {
                 }
             }
-            if (!released) {
-                mix();
-                outputBuffer.getBuffer().position(0);
-                locked = true;
-                return outputBuffer.getBuffer();
-            }
-            return null;
+            return realTick();
         }
     }
 
+    private ByteBuffer realTick() {
+        if (!released && !locked && !tracks.isEmpty() && isFlushOk()) {
+            mix();
+            locked = true;
+            outputBuffer.getBuffer().position(0);
+            return outputBuffer.getBuffer();
+        }
+        return null;
+    }
+
     public void unlock() {
-        List<Track> tracks = null;
         synchronized (lock) {
             if (!released && locked) {
-                tracks = new ArrayList<>(this.tracks);
                 locked = false;
-            }
-        }
-        if (null != tracks) {
-            for (Track track : tracks) {
-                track.reset();
+                for (Track track : tracks) {
+                    track.unlock();
+                }
             }
         }
     }
@@ -181,7 +173,6 @@ public class AudioMixer {
                 ByteBuffer buffer = this.buffer.getBuffer();
                 int maxLen = this.buffer.getBufferSize() - writeLen;
                 int safeSize = Math.min(maxLen, size);
-                if (safeSize == 0) return 0;
                 if (safeSize > 0) {
                     buffer.put(data, offset, safeSize);
                     writeLen += safeSize;
@@ -210,7 +201,7 @@ public class AudioMixer {
         @Override
         public void waitUnlock() {
             synchronized (lock) {
-                if (!deleted && locked) {
+                if (locked) {
                     try {
                         lock.wait();
                     } catch (InterruptedException ignored) {
@@ -232,6 +223,7 @@ public class AudioMixer {
                     deleted = true;
                     buffer.release();
                     buffer = null;
+                    locked = false;
                     lock.notifyAll();
                     return true;
                 }
@@ -239,13 +231,13 @@ public class AudioMixer {
             return false;
         }
 
-        public void reset() {
+        public void unlock() {
             synchronized (lock) {
                 if (!deleted && locked) {
-                    locked = false;
                     buffer.clear();
                     writeLen = 0;
                     buffer.getBuffer().position(0);
+                    locked = false;
                     lock.notifyAll();
                 }
             }

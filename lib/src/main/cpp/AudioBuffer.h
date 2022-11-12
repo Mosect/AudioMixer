@@ -25,6 +25,7 @@ typedef struct {
     jint sample_count; // 采样次数
     jint channel_stride; // 通道数据步长，即采样间隔
     jobject buffer;
+    jint buffer_size;
     uint8_t *channel_buffer_list[AudioBuffer_MAX_CHANNEL_COUNT]; // 通道buffer列表
     AudioUtils_Converter read_converter; // 读取转换器
     AudioUtils_Converter write_converter;
