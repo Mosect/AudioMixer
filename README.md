@@ -121,3 +121,7 @@ audioMixer.release();
 // 如果有线程再循环，需要自己去关闭线程循环，AudioMixer没有管理线程的能力
 // loop = false;
 ```
+
+# 其他
+
+更详细使用请查看demo
